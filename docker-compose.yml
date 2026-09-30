@@ -11,8 +11,10 @@ services:
     volumes:
       - iba_mysql_data:/var/lib/mysql
       - ./backend/docker/mysql-init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "3306:3306"
+    # Sem publicar porta no host: backend e adminer acessam pela rede interna
+    # do Docker (host "db"). Se precisar de um client MySQL do host, rode:
+    #   docker compose exec db mysql -u iba_migrate -p iba
+    # ou publique a porta só localmente via docker-compose.override.yml.
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
