@@ -47,6 +47,9 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_PROXY_TARGET: http://backend:80
+      # Domínio(s) público(s) atrás do reverse proxy, se houver (ex.: nginx
+      # com TLS). Separe por vírgula. Vazio = só localhost (padrão do Vite).
+      VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-}
     depends_on:
       - backend
     ports:
