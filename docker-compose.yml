@@ -1,0 +1,70 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    # Senha de root só é usada dentro do container (script de init abaixo);
+    # a aplicação nunca se conecta como root — veja backend/docker/mysql-init.
+    environment:
+      MYSQL_ROOT_PASSWORD: root_dev_only
+    env_file:
+      - ./backend/.env
+    volumes:
+      - iba_mysql_data:/var/lib/mysql
+      - ./backend/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Dentro da rede do Docker o MySQL é o serviço "db", não 127.0.0.1.
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8765:80"
+    volumes:
+      - ./backend:/var/www/html
+      - iba_backend_vendor:/var/www/html/vendor
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:80
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - iba_frontend_node_modules:/app/node_modules
+
+  # Administração visual do MySQL: http://localhost:8082 (sistema: MySQL, servidor: db)
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+    ports:
+      - "8082:8080"
+
+volumes:
+  iba_mysql_data:
+  iba_backend_vendor:
+  iba_frontend_node_modules:
