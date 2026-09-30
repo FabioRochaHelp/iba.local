@@ -1,0 +1,121 @@
+/* Identidade visual — Irmãos da Bola Academy */
+:root {
+  --iba-black: #111111;
+  --iba-black-soft: #1e1e1e;
+  --iba-gold: #c9a23f;
+  --iba-gold-light: #e5c76b;
+  --iba-gold-dark: #8c6a1f;
+  --iba-yellow: #f2c230;
+  --iba-blue: #3e86b8;
+  --iba-white: #ffffff;
+  --iba-surface: #f6f4ee;
+
+  --iba-success: #2e9e5b;
+  --iba-danger: #c8423b;
+  --iba-warning: #f2c230;
+  --iba-info: #3e86b8;
+
+  --iba-bg: var(--iba-surface);
+  --iba-card: var(--iba-white);
+  --iba-text: #1e1e1e;
+  --iba-text-muted: #5f5b51;
+  --iba-border: #e6e2d7;
+  --iba-gold-text: var(--iba-gold-dark); /* dourado legível sobre fundo claro */
+
+  --iba-sidebar-w: 256px;
+  --iba-topbar-h: 64px;
+  --iba-radius: 12px;
+  --iba-shadow: 0 1px 2px rgba(17, 17, 17, .06), 0 4px 16px rgba(17, 17, 17, .06);
+
+  /* Gráficos — paleta validada (daltonismo + contraste) contra #ffffff */
+  --c-expected: #2f6f9f;
+  --c-received: #b8902f;
+
+  --iba-font-title: 'Montserrat', system-ui, sans-serif;
+  --iba-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root.iba-dark {
+  --iba-bg: #111111;
+  --iba-card: #1e1e1e;
+  --iba-text: rgba(255, 255, 255, .9);
+  --iba-text-muted: #a8a293;
+  --iba-border: #2c2a26;
+  --iba-gold-text: var(--iba-gold-light);
+  --iba-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  /* passos próprios para o fundo escuro, validados contra #1e1e1e */
+  --c-expected: #4a8bbd;
+  --c-received: #b08a2c;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--iba-bg);
+  color: var(--iba-text);
+  font-family: var(--iba-font-body);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .iba-title {
+  font-family: var(--iba-font-title);
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+
+a { color: var(--iba-gold-text); }
+
+/* Cartão padrão (lembra o escudo: cantos arredondados + filete dourado) */
+.iba-card {
+  background: var(--iba-card);
+  border: 1px solid var(--iba-border);
+  border-radius: var(--iba-radius);
+  box-shadow: var(--iba-shadow);
+  padding: 1.25rem;
+}
+
+.iba-card--accent { border-top: 3px solid var(--iba-gold); }
+
+/* Faixa dourada — usada em cabeçalhos e impressos */
+.iba-ribbon {
+  height: 4px;
+  background: linear-gradient(90deg, var(--iba-gold-dark), var(--iba-gold-light) 50%, var(--iba-gold-dark));
+}
+
+.iba-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.iba-page-header p { margin: .25rem 0 0; color: var(--iba-text-muted); }
+
+.iba-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.iba-muted { color: var(--iba-text-muted); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}

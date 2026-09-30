@@ -1,0 +1,64 @@
+# SPA — Irmãos da Bola Academy
+Options -Indexes -MultiViews
+DirectoryIndex index.html
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # HTTPS obrigatório (exceto ambiente local)
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|.*\.local)(:\d+)?$ [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # Bloqueia arquivos/pastas ocultos (.git, .env ...)
+    RewriteRule (^|/)\. - [F,L]
+
+    # A API tem seu próprio .htaccess em /api
+    RewriteRule ^api(/|$) - [L]
+
+    # Arquivo estático inexistente (ex.: /assets/antigo.js após atualização) = 404,
+    # nunca o index.html (evita carregar HTML como JavaScript)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^assets/ - [R=404,L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule \.(js|css|map|png|jpe?g|svg|ico|woff2?|webmanifest)$ - [R=404,L]
+
+    # Fallback da SPA: rotas do Vue Router vão para index.html
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+<FilesMatch "(\.(env|ini|log|sql|sh|lock|md|bak|dist|json)|composer\..*)$">
+    Require all denied
+</FilesMatch>
+<Files "manifest.webmanifest">
+    Require all granted
+</Files>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    # style-src precisa de 'unsafe-inline' porque o PrimeVue injeta o tema em <style> em tempo de execução.
+    # Scripts continuam restritos a 'self' (sem inline, sem eval).
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
+
+    # index.html nunca em cache (garante versão nova após deploy); assets com hash, cache longo
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+    <FilesMatch "\.(js|css|woff2?|png|jpg|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>

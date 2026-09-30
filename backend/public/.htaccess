@@ -1,0 +1,30 @@
+# API — tudo vai para o front controller
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Força HTTPS em produção (ignora localhost)
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|.*\.local)(:\d+)?$ [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Nunca servir arquivos sensíveis
+<FilesMatch "(^\.|\.(env|ini|log|sql|sh|lock|json|md|dist|bak)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+    # A CSP da SPA (herdada do .htaccess da raiz) não se aplica à API:
+    # o PHP envia a política própria, mais restrita (default-src 'none').
+    Header always unset Content-Security-Policy
+    Header always unset Cache-Control
+</IfModule>

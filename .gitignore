@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------
+#  Segredos e dados pessoais — NUNCA versionar (repositório público)
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+# Planilhas/cadastros com dados de atletas menores (LGPD)
+docs/*.pdf
+docs/*.csv
+docs/*.xls
+docs/*.xlsx
+backend/storage/*.csv
+backend/storage/*.xlsx
+backend/storage/logs/*
+!backend/storage/logs/.gitkeep
+
+# Dependências e artefatos gerados
+backend/vendor/
+frontend/node_modules/
+frontend/dist/
+dist/
+backend/database/schema.sql
+backend/.phpunit.cache/
+
+# Editor/sistema
+.idea/
+.vscode/
+.DS_Store
+*.log
