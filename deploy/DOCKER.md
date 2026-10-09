@@ -120,7 +120,7 @@ make health                # deve mostrar "containers respondendo em http://127.
 
 O que o `proxy-mode` ajusta no `.env.prod`:
 - **`SITE_ADDRESS=:80`:** sem Let's Encrypt no Docker.
-- **`HTTP_BIND=127.0.0.1`:** a porta não fica exposta na internet; só o proxy local acessa.
+- **`PROXY_MODE=true` e `HTTP_BIND=127.0.0.1`:** o Docker publica **só** a porta HTTP, presa ao `127.0.0.1` (`docker-compose.proxy.yml`). Ela não fica exposta na internet, e as portas 443/8443 ficam livres para o painel.
 - **`TRUSTED_PROXIES=private_ranges`:** o IP real do visitante, enviado pelo proxy em `X-Forwarded-For`, chega ao PHP. Isso mantém funcionando o bloqueio de força bruta por IP e a auditoria. Cabeçalhos vindos de fora de redes privadas são ignorados, então ninguém consegue falsificar o IP.
 - **`APP_URL` e `SESSION_SECURE`:** continuam `https://seu-dominio` e `true`, porque o navegador acessa por HTTPS.
 

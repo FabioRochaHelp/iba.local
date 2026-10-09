@@ -1,0 +1,10 @@
+# =============================================================================
+#  Sobreposição para rodar ATRÁS de reverse proxy (painel da Hostinger etc.).
+#  Ativada automaticamente pelo Makefile quando o .env.prod tem PROXY_MODE=true
+#  (make proxy-mode). Publica SÓ a porta HTTP, presa ao 127.0.0.1 — a 443 fica
+#  com o proxy do painel.
+# =============================================================================
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:${HTTP_PORT:-8880}:80"

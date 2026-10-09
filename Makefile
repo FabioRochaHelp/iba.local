@@ -19,7 +19,9 @@ GIT_BRANCH ?= main
 
 # Produção usa arquivo e .env próprios (o docker-compose.yml/.env são do ambiente de desenvolvimento)
 ENV_FILE := .env.prod
-COMPOSE  := docker compose -f docker-compose.prod.yml --env-file $(ENV_FILE)
+# Atrás de reverse proxy (PROXY_MODE=true): só a porta HTTP local é publicada.
+PROXY_MODE := $(shell sed -n 's/^PROXY_MODE=//p' $(ENV_FILE) 2>/dev/null | tail -1)
+COMPOSE  := docker compose -f docker-compose.prod.yml $(if $(filter true,$(PROXY_MODE)),-f docker-compose.proxy.yml,) --env-file $(ENV_FILE)
 SSH      = ssh -p $(VPS_PORT) $(VPS_USER)@$(VPS_HOST)
 # O .env.prod não é incluído no make (senhas com $ ou # quebrariam); só lemos o domínio.
 DOMAIN_FROM_ENV := $(shell sed -n 's/^DOMAIN=//p' .env.prod 2>/dev/null)
@@ -150,9 +152,9 @@ health: ## Testa o sistema (porta local e https://DOMAIN)
 proxy-mode: ## Ajusta o .env.prod para rodar atrás de reverse proxy (PORT=8880)
 	$(require_env)
 	@port=$${PORT:-8880}
-	sed -i -E '/^#? ?(SITE_ADDRESS|HTTP_BIND|HTTP_PORT|HTTPS_BIND|HTTPS_PORT|TRUSTED_PROXIES)=/d; /^# --- (PROXY|MODO LOCAL).*---$$/d' $(ENV_FILE)
+	sed -i -E '/^#? ?(PROXY_MODE|SITE_ADDRESS|HTTP_BIND|HTTP_PORT|HTTPS_BIND|HTTPS_PORT|TRUSTED_PROXIES)=/d; /^# --- (PROXY|MODO LOCAL).*---$$/d' $(ENV_FILE)
 	sed -i 's/^SESSION_SECURE=false/SESSION_SECURE=true/' $(ENV_FILE)
-	printf '\n# --- PROXY (make proxy-mode) ---\nSITE_ADDRESS=:80\nHTTP_BIND=127.0.0.1\nHTTP_PORT=%s\nHTTPS_BIND=127.0.0.1\nHTTPS_PORT=8443\nTRUSTED_PROXIES=private_ranges\n' "$$port" >> $(ENV_FILE)
+	printf '\n# --- PROXY (make proxy-mode) ---\nPROXY_MODE=true\nSITE_ADDRESS=:80\nHTTP_BIND=127.0.0.1\nHTTP_PORT=%s\nTRUSTED_PROXIES=private_ranges\n' "$$port" >> $(ENV_FILE)
 	echo "Modo proxy: o sistema responde em http://127.0.0.1:$$port"
 	echo "No painel, crie o reverse proxy:  https://$(DOMAIN_FROM_ENV)  ->  http://127.0.0.1:$$port"
 	echo "Aplique com: make up   (e confira com: make health)"
