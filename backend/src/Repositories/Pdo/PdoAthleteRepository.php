@@ -101,6 +101,16 @@ final class PdoAthleteRepository implements AthleteRepositoryInterface
         return $this->db->fetchValue('SELECT 1 FROM athletes WHERE id = ? AND deleted_at IS NULL', [$id]) !== null;
     }
 
+    public function allForMatching(): array
+    {
+        return array_map(static fn (array $r) => [
+            'id' => (int) $r['id'],
+            'name' => $r['name'],
+            'birth_date' => $r['birth_date'],
+            'guardian_id' => (int) $r['guardian_id'],
+        ], $this->db->fetchAll('SELECT id, name, birth_date, guardian_id FROM athletes WHERE deleted_at IS NULL ORDER BY id'));
+    }
+
     public function guardianIdOf(int $athleteId): ?int
     {
         $id = $this->db->fetchValue('SELECT guardian_id FROM athletes WHERE id = ? AND deleted_at IS NULL', [$athleteId]);

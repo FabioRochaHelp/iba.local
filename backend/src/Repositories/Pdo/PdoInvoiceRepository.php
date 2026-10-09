@@ -176,6 +176,25 @@ final class PdoInvoiceRepository implements InvoiceRepositoryInterface
         ));
     }
 
+    public function deleteMonths(string $fromMonth, string $toMonth): int
+    {
+        return $this->db->execute('DELETE FROM invoices WHERE reference_month BETWEEN ? AND ?', [$fromMonth, $toMonth]);
+    }
+
+    public function paidTotalsByMonth(string $fromMonth, string $toMonth): array
+    {
+        $result = [];
+        foreach ($this->db->fetchAll(
+            "SELECT DATE_FORMAT(reference_month, '%Y-%m') AS ym, SUM(paid_amount) AS paid FROM invoices
+              WHERE status <> 'cancelada' AND reference_month BETWEEN ? AND ? GROUP BY ym ORDER BY ym",
+            [$fromMonth, $toMonth],
+        ) as $r) {
+            $result[(string) $r['ym']] = number_format((float) $r['paid'], 2, '.', '');
+        }
+
+        return $result;
+    }
+
     public function create(array $data): int
     {
         return $this->db->insert('invoices', array_intersect_key($data, array_flip(self::COLUMNS)));

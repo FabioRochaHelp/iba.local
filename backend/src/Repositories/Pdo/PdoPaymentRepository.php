@@ -20,6 +20,14 @@ final class PdoPaymentRepository implements PaymentRepositoryInterface
         return $this->db->insert('payments', array_intersect_key($data, array_flip(self::COLUMNS)));
     }
 
+    public function deleteForInvoiceMonths(string $fromMonth, string $toMonth): int
+    {
+        return $this->db->execute(
+            'DELETE p FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.reference_month BETWEEN ? AND ?',
+            [$fromMonth, $toMonth],
+        );
+    }
+
     public function find(int $id): ?array
     {
         return $this->db->fetchOne('SELECT * FROM payments WHERE id = ?', [$id]);

@@ -27,7 +27,8 @@ foreach (['pdo_mysql', 'mbstring', 'json', 'zip', 'simplexml'] as $ext) {
     $check("Extensão {$ext}", extension_loaded($ext), "Ative a extensão {$ext} no cPanel (Select PHP Version).", in_array($ext, ['pdo_mysql', 'mbstring', 'json'], true));
 }
 $check('Argon2id disponível', defined('PASSWORD_ARGON2ID'), 'Sem Argon2id o sistema usa bcrypt (seguro, apenas informativo).', false);
-$check('Arquivo .env existe', is_file($root . '/.env'), 'Copie .env.example para .env e preencha.');
+$inDocker = is_file('/.dockerenv') || getenv('DB_HOST') !== false;
+$check($inDocker ? 'Configuração por variáveis de ambiente (Docker)' : 'Arquivo .env existe', $inDocker || is_file($root . '/.env'), 'Copie .env.example para .env e preencha.');
 $check('vendor/ instalado', is_file($root . '/vendor/autoload.php'), 'Envie a pasta vendor/ gerada pelo build.');
 
 if (!is_file($root . '/vendor/autoload.php')) {
@@ -47,8 +48,10 @@ $check('SESSION_SECURE=true', (bool) $config->get('session.secure'), 'Defina SES
 $check('ADMIN_PASSWORD vazio no .env', (string) \App\Core\Config\Env::get('ADMIN_PASSWORD', '') === '', 'Após criar o admin, apague ADMIN_PASSWORD do .env.', false);
 $logs = (string) $config->get('paths.logs');
 $check('storage/logs gravável', is_dir($logs) && is_writable($logs), "Dê permissão de escrita em {$logs} (755).");
-$envPerms = is_file($root . '/.env') ? substr(sprintf('%o', fileperms($root . '/.env')), -3) : '---';
-$check(".env com permissão restrita ({$envPerms})", in_array($envPerms, ['600', '640', '400', '440'], true), 'Ajuste para 600 no Gerenciador de Arquivos.', false);
+if (is_file($root . '/.env')) {
+    $envPerms = substr(sprintf('%o', fileperms($root . '/.env')), -3);
+    $check(".env com permissão restrita ({$envPerms})", in_array($envPerms, ['600', '640', '400', '440'], true), 'Ajuste para 600 no Gerenciador de Arquivos.', false);
+}
 $check('Pasta app fora do public_html', !str_contains($root, 'public_html'), 'A pasta app/ não pode ficar dentro de public_html.');
 
 try {

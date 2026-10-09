@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/.env
+**/.env.*
+!**/.env.example
+.env.docker.example
+deploy.env
+backups
+dist
+docs
+**/node_modules
+backend/vendor
+backend/storage/logs/*.log
+backend/.phpunit.cache
+frontend/dist
+*.md

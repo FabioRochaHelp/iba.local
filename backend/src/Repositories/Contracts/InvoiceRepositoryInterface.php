@@ -40,6 +40,12 @@ interface InvoiceRepositoryInterface
     /** @return list<array<string, mixed>> mensalidades vencidas com dados do responsável */
     public function overdue(string $today): array;
 
+    /** Remove as mensalidades com referência entre os meses (inclusive); devolve a quantidade. */
+    public function deleteMonths(string $fromMonth, string $toMonth): int;
+
+    /** @return array<string, string> AAAA-MM => soma paga (exclui canceladas) */
+    public function paidTotalsByMonth(string $fromMonth, string $toMonth): array;
+
     /** @param array<string, mixed> $data */
     public function create(array $data): int;
 

@@ -12,6 +12,9 @@ interface PaymentRepositoryInterface
     /** @return array<string, mixed>|null */
     public function find(int $id): ?array;
 
+    /** Remove os pagamentos de mensalidades com referência entre os meses; devolve a quantidade. */
+    public function deleteForInvoiceMonths(string $fromMonth, string $toMonth): int;
+
     /** @return list<array<string, mixed>> inclui estornados (com reversed_at) */
     public function forInvoice(int $invoiceId): array;
 

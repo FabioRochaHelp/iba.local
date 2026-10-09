@@ -18,6 +18,9 @@ interface AthleteRepositoryInterface
 
     public function exists(int $id): bool;
 
+    /** @return list<array{id: int, name: string, birth_date: ?string, guardian_id: int}> atletas não excluídos (para casamento de nomes) */
+    public function allForMatching(): array;
+
     /** Responsável do atleta (null se o atleta não existe ou foi excluído). */
     public function guardianIdOf(int $athleteId): ?int;
 

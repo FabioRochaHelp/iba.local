@@ -1,0 +1,5 @@
+# Tarefas agendadas (fuso America/Sao_Paulo). Gerado pelo entrypoint do agendador.
+# Limpeza diária: sessões expiradas, tentativas de login antigas, logs > 90 dias
+0 3 * * * php /app/scripts/maintenance.php
+# Backup diário do banco em /backups (mantém BACKUP_KEEP_DAYS dias)
+30 3 * * * /usr/local/bin/iba-backup

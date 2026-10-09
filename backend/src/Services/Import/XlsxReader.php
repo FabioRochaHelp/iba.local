@@ -21,19 +21,34 @@ final class XlsxReader implements SpreadsheetReaderInterface
 
     public function read(string $path): array
     {
-        $zip = new ZipArchive();
-        if ($zip->open($path) !== true) {
-            throw new RuntimeException("Não foi possível abrir {$path}");
-        }
+        return $this->readSheet($path, null, 1);
+    }
+
+    /** @return list<string> nomes das abas, na ordem do arquivo */
+    public function sheetNames(string $path): array
+    {
+        $zip = $this->open($path);
+        $names = array_keys($this->sheetPaths($zip));
+        $zip->close();
+
+        return $names;
+    }
+
+    /**
+     * Lê uma aba pelo nome (null = primeira) usando a linha $headerRow
+     * (numeração do Excel, base 1) como cabeçalho. Colunas sem título são
+     * ignoradas; linhas totalmente vazias também.
+     *
+     * @return list<array<string, string>>
+     */
+    public function readSheet(string $path, ?string $sheetName = null, int $headerRow = 1): array
+    {
+        $zip = $this->open($path);
 
         $shared = [];
         if (($xml = $zip->getFromName('xl/sharedStrings.xml')) !== false) {
-            $sst = $this->xml($xml);
-            foreach ($sst->si as $si) {
-                $text = '';
-                if (isset($si->t)) {
-                    $text = (string) $si->t;
-                }
+            foreach ($this->xml($xml)->si as $si) {
+                $text = isset($si->t) ? (string) $si->t : '';
                 foreach ($si->r as $run) {
                     $text .= (string) $run->t;
                 }
@@ -41,47 +56,97 @@ final class XlsxReader implements SpreadsheetReaderInterface
             }
         }
 
+        $sheets = $this->sheetPaths($zip);
+        $target = $sheetName === null ? reset($sheets) : ($sheets[$sheetName] ?? null);
+        if ($target === null || $target === false) {
+            $zip->close();
+            throw new RuntimeException("Aba não encontrada: {$sheetName}");
+        }
+
         $dateStyles = $this->dateStyleIndexes($zip->getFromName('xl/styles.xml') ?: '');
-        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $sheetXml = $zip->getFromName($target);
         $zip->close();
         if ($sheetXml === false) {
             throw new RuntimeException('Planilha vazia ou formato não suportado.');
         }
 
-        $grid = [];
+        $grid = []; // número da linha => [coluna => valor]
         foreach ($this->xml($sheetXml)->sheetData->row as $row) {
             $cells = [];
             foreach ($row->c as $c) {
-                $ref = (string) $c['r'];
-                $col = $this->columnIndex((string) preg_replace('/\d+/', '', $ref));
+                $col = $this->columnIndex((string) preg_replace('/\d+/', '', (string) $c['r']));
                 $type = (string) $c['t'];
                 $value = isset($c->v) ? (string) $c->v : (isset($c->is->t) ? (string) $c->is->t : '');
                 if ($type === 's') {
                     $value = $shared[(int) $value] ?? '';
                 } elseif ($type === '' && $value !== '' && is_numeric($value) && in_array((int) $c['s'], $dateStyles, true)) {
                     $value = gmdate('Y-m-d', (int) round(((float) $value - 25569) * 86400));
+                } elseif ($type === '' && is_numeric($value) && preg_match('/^\d+(\.0+)?$/', $value)) {
+                    $value = (string) (int) $value; // 18999990000.0 -> 18999990000
                 }
                 $cells[$col] = trim($value);
             }
             if ($cells !== [] && implode('', $cells) !== '') {
-                $grid[] = $cells;
+                $grid[(int) $row['r']] = $cells;
             }
         }
 
-        if ($grid === []) {
+        $header = $grid[$headerRow] ?? null;
+        if ($header === null) {
             return [];
         }
-        $header = array_shift($grid);
         $rows = [];
-        foreach ($grid as $cells) {
+        foreach ($grid as $number => $cells) {
+            if ($number <= $headerRow) {
+                continue;
+            }
             $row = [];
             foreach ($header as $i => $name) {
-                $row[$name] = $cells[$i] ?? '';
+                if ($name !== '') {
+                    $row[$name] = $cells[$i] ?? '';
+                }
             }
             $rows[] = $row;
         }
 
         return $rows;
+    }
+
+    private function open(string $path): ZipArchive
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw new RuntimeException("Não foi possível abrir {$path}");
+        }
+
+        return $zip;
+    }
+
+    /** @return array<string, string> nome da aba => caminho do XML no pacote */
+    private function sheetPaths(ZipArchive $zip): array
+    {
+        $workbook = $zip->getFromName('xl/workbook.xml');
+        $rels = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if ($workbook === false || $rels === false) {
+            return ['Planilha1' => 'xl/worksheets/sheet1.xml'];
+        }
+
+        $targets = [];
+        foreach ($this->xml($rels)->Relationship as $rel) {
+            $target = ltrim((string) $rel['Target'], '/');
+            $targets[(string) $rel['Id']] = str_starts_with($target, 'xl/') ? $target : 'xl/' . $target;
+        }
+
+        $paths = [];
+        $wb = $this->xml($workbook);
+        foreach ($wb->sheets->sheet as $sheet) {
+            $rid = (string) $sheet->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'];
+            if (isset($targets[$rid])) {
+                $paths[(string) $sheet['name']] = $targets[$rid];
+            }
+        }
+
+        return $paths;
     }
 
     private function xml(string $content): SimpleXMLElement

@@ -26,10 +26,14 @@ docs/       planilha original de referência
 
 ## Publicar em produção
 
-```bash
-bash deploy/build.sh      # testes + auditoria + build → dist/iba-deploy-*.zip
-```
-Depois siga **[deploy/README.md](deploy/README.md)**, o passo a passo no cPanel (banco, upload, `.env`, cron e verificação).
+Há dois caminhos:
+
+| Destino | Como |
+|---|---|
+| **VPS com Docker (Hostinger)** — recomendado | `make setup-vps DOMAIN=... ACME_EMAIL=...` uma vez, depois `make deploy`. HTTPS automático, backup diário, MySQL isolado. Guia: **[deploy/DOCKER.md](deploy/DOCKER.md)** |
+| Hospedagem compartilhada (cPanel) | `bash deploy/build.sh` gera um `.zip`. Guia: **[deploy/README.md](deploy/README.md)** |
+
+`make help` lista todos os comandos.
 
 ## Ambiente de desenvolvimento
 
@@ -62,6 +66,7 @@ npm run dev                       # http://localhost:5173 (proxy /api → :8765)
 | Comando | Função |
 |---|---|
 | `php scripts/import_planilha.php arquivo.xlsx [--dry-run] [--mes=AAAA-MM]` | Importa a planilha de atletas (repetir não duplica) |
+| `php scripts/import_controle_mensalidade.php arquivo.xlsx [--dry-run]` | Carga da planilha "CONTROLE MENSALIDADE" (abas de alunos e de mensalidades). **Substitui** as mensalidades e os pagamentos de abr–set/2026 pelos da planilha; faça backup antes |
 | `php scripts/generate_invoices.php [--mes=AAAA-MM]` | Gera as mensalidades do mês (repetir não duplica) |
 | `php scripts/maintenance.php` | Limpeza diária (sessões, tentativas de login, logs) |
 | `php scripts/check_install.php` | Verifica se a instalação está pronta para produção |

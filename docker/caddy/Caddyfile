@@ -1,0 +1,70 @@
+# =============================================================================
+#  Irmãos da Bola Academy — Caddy
+#  - HTTPS automático (Let's Encrypt) para {$SITE_ADDRESS}
+#  - SPA Vue em /srv, API PHP-FPM em /api (container "api")
+#  - Mesmos cabeçalhos de segurança do .htaccess da hospedagem compartilhada
+#  Os blocos "handle" são mutuamente exclusivos e avaliados na ordem abaixo.
+# =============================================================================
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	root * /srv
+	request_body {
+		max_size 2MB
+	}
+
+	# Cabeçalhos da SPA (a API envia os próprios, com CSP mais restrita)
+	@spa not path /api/*
+	header @spa {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# style-src 'unsafe-inline': o PrimeVue injeta o tema em <style>. Scripts só de 'self'.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	}
+
+	# 1) Arquivos/pastas ocultos e scripts PHP soltos: nunca
+	@blocked path */.* *.php
+	handle @blocked {
+		respond 404
+	}
+
+	# 2) API -> PHP-FPM
+	handle /api/* {
+		header -Server
+		rewrite * /index.php
+		reverse_proxy api:9000 {
+			transport fastcgi {
+				root /app/public
+				split .php
+			}
+		}
+	}
+
+	# 3) Arquivos estáticos com cache longo; inexistente = 404 (nunca o index.html)
+	@static path /assets/* /img/* /favicon.ico /apple-touch-icon.png /manifest.webmanifest
+	handle @static {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# 4) Rotas do Vue Router -> index.html (sem cache, para pegar a versão nova após deploy)
+	handle {
+		header Cache-Control "no-cache, no-store, must-revalidate"
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
