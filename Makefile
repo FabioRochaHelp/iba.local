@@ -24,6 +24,16 @@ SSH      = ssh -p $(VPS_PORT) $(VPS_USER)@$(VPS_HOST)
 # O .env.prod não é incluído no make (senhas com $ ou # quebrariam); só lemos o domínio.
 DOMAIN_FROM_ENV := $(shell sed -n 's/^DOMAIN=//p' .env.prod 2>/dev/null)
 
+# Mensagem clara quando falta o .env.prod (ex.: VPS configurada antes da troca .env -> .env.prod)
+define require_env
+	@if [ ! -f $(ENV_FILE) ]; then
+	  if [ -f .env ] && grep -q '^MYSQL_ROOT_PASSWORD=' .env; then
+	    echo "Falta o $(ENV_FILE). O seu .env tem a configuração de produção (versão anterior):"; echo "  mv .env $(ENV_FILE)"
+	  else echo "Falta o $(ENV_FILE). Crie com: make env  (ou make local para teste local)"; fi
+	  exit 1
+	fi
+endef
+
 define require_vps
 	@if [ -z "$(VPS_HOST)" ]; then echo "Defina VPS_HOST em deploy.env (copie de deploy.env.example)."; exit 1; fi
 endef
@@ -43,21 +53,27 @@ env: ## Cria o .env.prod a partir do modelo, com senhas aleatórias
 	echo "$(ENV_FILE) criado com senhas aleatórias. Ajuste DOMAIN, ACME_EMAIL, APP_URL e ADMIN_EMAIL."
 
 build: ## Constrói as imagens
+	$(require_env)
 	$(COMPOSE) build --pull
 
 up: ## Sobe tudo em segundo plano
+	$(require_env)
 	$(COMPOSE) up -d --remove-orphans
 
 down: ## Para tudo (os dados ficam nos volumes)
+	$(require_env)
 	$(COMPOSE) down
 
 restart: ## Reinicia os containers
+	$(require_env)
 	$(COMPOSE) restart
 
 ps: ## Situação dos containers
+	$(require_env)
 	$(COMPOSE) ps
 
 logs: ## Logs (make logs S=api para um serviço)
+	$(require_env)
 	$(COMPOSE) logs -f --tail=200 $(S)
 
 release: ## Build + sobe + migrations + checagem (usado pelo deploy)
@@ -106,37 +122,58 @@ local-reset: ## APAGA o Docker local (containers, banco e volumes)
 ## Banco e aplicação
 .PHONY: wait-db migrate seed check health shell db-shell backup restore reset-password import-planilha
 wait-db:
+	$(require_env)
 	@echo -n "Aguardando o MySQL"; for i in $$(seq 1 60); do
 	  [ "$$($(COMPOSE) ps db --format '{{.Health}}')" = "healthy" ] && { echo " ok"; exit 0; }; echo -n "."; sleep 2; done
 	echo " tempo esgotado"; exit 1
 
 migrate: ## Aplica migrations pendentes
+	$(require_env)
 	$(COMPOSE) exec -T api php database/migrate.php
 
 seed: ## Migrations + dados iniciais + 1º admin (mostra a senha temporária)
+	$(require_env)
 	$(COMPOSE) exec -T api php database/migrate.php --seed
 
 check: ## Verifica se a instalação está pronta para produção
+	$(require_env)
 	$(COMPOSE) exec -T api php scripts/check_install.php
 
-health: ## Testa https://DOMAIN/api/health
-	@d="$(DOMAIN_FROM_ENV)"; for i in $$(seq 1 20); do
-	  if curl -fsS --max-time 5 "https://$$d/api/health" >/dev/null 2>&1; then echo "OK: https://$$d no ar"; exit 0; fi; sleep 3; done
-	echo "Aviso: https://$$d/api/health não respondeu (DNS/certificado ainda propagando?). Veja: make logs S=web"
+health: ## Testa o sistema (porta local e https://DOMAIN)
+	@port=$$(sed -n 's/^HTTP_PORT=//p' $(ENV_FILE) | tail -1); d="$(DOMAIN_FROM_ENV)"
+	for i in $$(seq 1 15); do curl -fsS --max-time 3 "http://127.0.0.1:$${port:-80}/api/health" >/dev/null 2>&1 && break; sleep 2; done
+	if curl -fsS --max-time 3 "http://127.0.0.1:$${port:-80}/api/health" >/dev/null 2>&1; then echo "OK: containers respondendo em http://127.0.0.1:$${port:-80}"
+	else echo "ERRO: containers não respondem em 127.0.0.1:$${port:-80}. Veja: make logs S=web / make logs S=api"; exit 1; fi
+	if curl -fsS --max-time 8 "https://$$d/api/health" >/dev/null 2>&1; then echo "OK: https://$$d no ar"
+	else echo "Aviso: https://$$d ainda não responde (DNS, certificado ou reverse proxy do painel ainda não configurado)."; fi
+
+proxy-mode: ## Ajusta o .env.prod para rodar atrás de reverse proxy (PORT=8880)
+	$(require_env)
+	@port=$${PORT:-8880}
+	sed -i -E '/^#? ?(SITE_ADDRESS|HTTP_BIND|HTTP_PORT|HTTPS_BIND|HTTPS_PORT|TRUSTED_PROXIES)=/d; /^# --- (PROXY|MODO LOCAL).*---$$/d' $(ENV_FILE)
+	sed -i 's/^SESSION_SECURE=false/SESSION_SECURE=true/' $(ENV_FILE)
+	printf '\n# --- PROXY (make proxy-mode) ---\nSITE_ADDRESS=:80\nHTTP_BIND=127.0.0.1\nHTTP_PORT=%s\nHTTPS_BIND=127.0.0.1\nHTTPS_PORT=8443\nTRUSTED_PROXIES=private_ranges\n' "$$port" >> $(ENV_FILE)
+	echo "Modo proxy: o sistema responde em http://127.0.0.1:$$port"
+	echo "No painel, crie o reverse proxy:  https://$(DOMAIN_FROM_ENV)  ->  http://127.0.0.1:$$port"
+	echo "Aplique com: make up   (e confira com: make health)"
 
 shell: ## Terminal no container da API
+	$(require_env)
 	$(COMPOSE) exec api sh
 
 db-shell: ## Console MySQL (usuário da aplicação)
+	$(require_env)
 	$(COMPOSE) exec db sh -c 'mysql -u"$$DB_USERNAME" -p"$$DB_PASSWORD" "$$DB_DATABASE"'
 
 backup: ## Backup agora (fica no volume e com cópia em ./backups)
+	$(require_env)
 	mkdir -p backups && chmod 700 backups
 	out=$$($(COMPOSE) exec -T scheduler iba-backup) && echo "$$out"
 	f=$$(echo "$$out" | sed -n 's|.*backup: /backups/\([^ ]*\).*|\1|p')
 	$(COMPOSE) cp "scheduler:/backups/$$f" "backups/$$f" && chmod 600 "backups/$$f" && echo "cópia local: backups/$$f"
 
 restore: ## Restaura um backup: make restore FILE=backups/iba-....sql.gz
+	$(require_env)
 	@test -f "$(FILE)" || { echo "Informe FILE=caminho/do/backup.sql.gz"; exit 1; }
 	read -p "Isto SUBSTITUI os dados atuais pelo backup $(FILE). Digite SIM para continuar: " ok; [ "$$ok" = "SIM" ] || exit 1
 	gunzip -c "$(FILE)" | $(COMPOSE) exec -T db sh -c 'mysql -uroot -p"$$MYSQL_ROOT_PASSWORD" "$$DB_DATABASE"'
@@ -144,10 +181,12 @@ restore: ## Restaura um backup: make restore FILE=backups/iba-....sql.gz
 	echo "Restaurado."
 
 reset-password: ## Nova senha temporária: make reset-password EMAIL=admin@...
+	$(require_env)
 	@test -n "$(EMAIL)" || { echo "Informe EMAIL=..."; exit 1; }
 	$(COMPOSE) exec -T api php scripts/reset_password.php "$(EMAIL)"
 
 import-planilha: ## Carga da planilha: make import-planilha FILE=... [DRY=1]
+	$(require_env)
 	@test -f "$(FILE)" || { echo "Informe FILE=caminho/da/planilha.xlsx"; exit 1; }
 	$(COMPOSE) cp "$(FILE)" api:/tmp/planilha.xlsx
 	$(COMPOSE) exec -T api php scripts/import_controle_mensalidade.php /tmp/planilha.xlsx $(if $(DRY),--dry-run,)

@@ -1,6 +1,7 @@
 # =============================================================================
 #  Irmãos da Bola Academy — Caddy
 #  - HTTPS automático (Let's Encrypt) para {$SITE_ADDRESS}
+#    ou, atrás de proxy, só HTTP (SITE_ADDRESS=:80) — o proxy faz o HTTPS
 #  - SPA Vue em /srv, API PHP-FPM em /api (container "api")
 #  - Mesmos cabeçalhos de segurança do .htaccess da hospedagem compartilhada
 #  Os blocos "handle" são mutuamente exclusivos e avaliados na ordem abaixo.
@@ -8,6 +9,13 @@
 {
 	email {$ACME_EMAIL}
 	admin off
+	servers {
+		# Atrás de um reverse proxy (ex.: painel da Hostinger), o IP real do visitante
+		# chega em X-Forwarded-For. Só confiamos nesse cabeçalho vindo de redes privadas
+		# (o proxy no próprio host). Ajuste TRUSTED_PROXIES se o proxy for externo.
+		trusted_proxies static {$TRUSTED_PROXIES:private_ranges}
+		client_ip_headers X-Forwarded-For X-Real-IP
+	}
 }
 
 {$SITE_ADDRESS} {
@@ -45,6 +53,9 @@
 			transport fastcgi {
 				root /app/public
 				split .php
+				# IP real do visitante (já resolvido pelos trusted_proxies) para o PHP:
+				# usado no bloqueio de força bruta, rate limit e auditoria.
+				env REMOTE_ADDR {client_ip}
 			}
 		}
 	}

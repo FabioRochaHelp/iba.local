@@ -99,6 +99,35 @@ make remote-check
 
 ---
 
+## Atrás do reverse proxy do painel da Hostinger (ou Nginx Proxy Manager, CloudPanel...)
+
+Quando o **painel** cuida do domínio e do certificado HTTPS, o Docker não deve usar as portas 80/443. O Caddy passa a escutar só HTTP numa porta local, e o painel encaminha as requisições para ela.
+
+**Na VPS** (`make ssh`, ou direto no terminal da VPS, dentro da pasta do projeto):
+```bash
+make proxy-mode            # porta padrão 8880; outra: make proxy-mode PORT=9000
+make up
+make health                # deve mostrar "containers respondendo em http://127.0.0.1:8880"
+```
+
+**No painel**, crie o reverse proxy do domínio:
+
+| Campo | Valor |
+|---|---|
+| Domínio | `iba.rocksky.com.br` (com SSL/Let's Encrypt ativado **no painel**) |
+| Destino | `http://127.0.0.1:8880` |
+| Cabeçalhos | mantenha `Host` e `X-Forwarded-For` (padrão na maioria dos painéis) |
+
+O que o `proxy-mode` ajusta no `.env.prod`:
+- **`SITE_ADDRESS=:80`:** sem Let's Encrypt no Docker.
+- **`HTTP_BIND=127.0.0.1`:** a porta não fica exposta na internet; só o proxy local acessa.
+- **`TRUSTED_PROXIES=private_ranges`:** o IP real do visitante, enviado pelo proxy em `X-Forwarded-For`, chega ao PHP. Isso mantém funcionando o bloqueio de força bruta por IP e a auditoria. Cabeçalhos vindos de fora de redes privadas são ignorados, então ninguém consegue falsificar o IP.
+- **`APP_URL` e `SESSION_SECURE`:** continuam `https://seu-dominio` e `true`, porque o navegador acessa por HTTPS.
+
+> Se o proxy do painel rodar **fora** da VPS (IP público), informe o IP dele em `TRUSTED_PROXIES` (ex.: `TRUSTED_PROXIES=203.0.113.10/32`).
+
+---
+
 ## Dia a dia (na sua máquina)
 
 | Comando | O que faz |
