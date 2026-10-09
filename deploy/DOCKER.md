@@ -1,5 +1,7 @@
 # Deploy com Docker em VPS (Hostinger)
 
+> Há dois arquivos Compose: `docker-compose.yml` é o ambiente de **desenvolvimento** (hot-reload, Vite, Adminer — veja o README), e `docker-compose.prod.yml` (este guia) é o de **produção**, configurado em `.env.prod` e operado pelo `Makefile`.
+
 Este guia coloca o sistema no ar numa VPS com **Docker**, **HTTPS automático (Let's Encrypt)** e **backup diário**. Você opera tudo pela sua máquina com `make`.
 
 ```
@@ -18,7 +20,7 @@ Internet ──443/80──▶ web (Caddy: HTTPS + SPA Vue) ──FastCGI──�
 Esta é a mesma estrutura de produção, só que em HTTP, sem certificado, em `http://localhost:8880`.
 
 ```bash
-make local                                   # cria o .env local, faz build, sobe e roda as migrations
+make local                                   # cria o .env.prod local, faz build, sobe e roda as migrations
 make seed                                    # banco vazio: cria o admin e mostra a senha temporária
 make local-db FILE=~/backups/dump.sql.gz     # ou: carrega um dump com seus dados (mesmos logins/senhas)
 ```
@@ -32,7 +34,7 @@ make local-db FILE=~/backups/dump.sql.gz     # ou: carrega um dump com seus dado
 | `make local-reset` | Apaga containers, banco e volumes locais |
 | `make local LOCAL_PORT=9000` | Usa outra porta, se a 8880 estiver ocupada |
 
-> O `.env` local fica na raiz do projeto (está no `.gitignore`) e é marcado com `SITE_ADDRESS=:80`. Os alvos locais se recusam a usar um `.env` de produção.
+> O `.env.prod` local fica na raiz do projeto (está no `.gitignore`) e é marcado com `SITE_ADDRESS=:80`. Os alvos locais se recusam a usar um `.env.prod` de produção.
 > O Docker usa um banco **próprio**, separado do MySQL da máquina (`iba_db`) usado pelo `npm run dev` / `composer serve`.
 
 ---
@@ -57,16 +59,16 @@ cp deploy.env.example deploy.env      # fica só na sua máquina (está no .giti
 nano deploy.env                       # VPS_HOST=IP da VPS, VPS_USER=root
 ```
 
-**2. Prepare a VPS.** O script instala Docker, firewall (ufw), fail2ban e swap, clona o repositório em `/opt/iba` e cria o `.env` com senhas aleatórias:
+**2. Prepare a VPS.** O script instala Docker, firewall (ufw), fail2ban e swap, clona o repositório em `/opt/iba` e cria o `.env.prod` com senhas aleatórias:
 ```bash
 make setup-vps DOMAIN=gestao.irmaosdabola.com.br ACME_EMAIL=seu@email.com
 ```
 No final, ele avisa se o DNS do domínio ainda não aponta para a VPS. Sem isso o HTTPS não é emitido.
 
-**3. Revise o `.env` da VPS**, se quiser. Os campos mais importantes são `ADMIN_EMAIL` e `AUTO_INVOICES`:
+**3. Revise o `.env.prod` da VPS**, se quiser. Os campos mais importantes são `ADMIN_EMAIL` e `AUTO_INVOICES`:
 ```bash
 make ssh
-nano .env          # as senhas do banco já foram geradas; não precisa mexer nelas
+nano .env.prod     # as senhas do banco já foram geradas; não precisa mexer nelas
 exit
 ```
 
@@ -128,7 +130,7 @@ make remote-check
 |---|---|
 | Todo dia, 03:00 | Limpeza de sessões expiradas, tentativas de login antigas e logs com mais de 90 dias |
 | Todo dia, 03:30 | **Backup do banco** (gzip), mantendo `BACKUP_KEEP_DAYS` dias (padrão: 14) |
-| Dia 1º, 06:00 | Gera as mensalidades do mês, **só se** `AUTO_INVOICES=true` no `.env` |
+| Dia 1º, 06:00 | Gera as mensalidades do mês, **só se** `AUTO_INVOICES=true` no `.env.prod` |
 
 > **Guarde backups fora da VPS.** Rode `make remote-backup` de vez em quando, ou ative o backup semanal da própria Hostinger em *VPS → Backups*.
 
@@ -137,8 +139,8 @@ make remote-check
 ## Atualizar a VPS / mudar configurações
 
 - **Nova versão do sistema:** `git push` e depois `make deploy`. As migrations rodam sozinhas.
-- **Mudou algo no `.env` da VPS:** `make ssh` e depois `make up`. Os containers são recriados com a nova configuração.
-- **Trocar de domínio:** ajuste `DOMAIN` e `APP_URL` no `.env` e rode `make up`. O certificado novo é emitido automaticamente.
+- **Mudou algo no `.env.prod` da VPS:** `make ssh` e depois `make up`. Os containers são recriados com a nova configuração.
+- **Trocar de domínio:** ajuste `DOMAIN` e `APP_URL` no `.env.prod` e rode `make up`. O certificado novo é emitido automaticamente.
 
 ## Problemas comuns
 

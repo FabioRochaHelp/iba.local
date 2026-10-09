@@ -17,10 +17,12 @@ VPS_DIR    ?= /opt/iba
 GIT_REPO   ?= https://github.com/FabioRochaHelp/iba.local.git
 GIT_BRANCH ?= main
 
-COMPOSE := docker compose
+# Produção usa arquivo e .env próprios (o docker-compose.yml/.env são do ambiente de desenvolvimento)
+ENV_FILE := .env.prod
+COMPOSE  := docker compose -f docker-compose.prod.yml --env-file $(ENV_FILE)
 SSH      = ssh -p $(VPS_PORT) $(VPS_USER)@$(VPS_HOST)
-# O .env não é incluído no make (senhas com $ ou # quebrariam); só lemos o domínio.
-DOMAIN_FROM_ENV := $(shell sed -n 's/^DOMAIN=//p' .env 2>/dev/null)
+# O .env.prod não é incluído no make (senhas com $ ou # quebrariam); só lemos o domínio.
+DOMAIN_FROM_ENV := $(shell sed -n 's/^DOMAIN=//p' .env.prod 2>/dev/null)
 
 define require_vps
 	@if [ -z "$(VPS_HOST)" ]; then echo "Defina VPS_HOST em deploy.env (copie de deploy.env.example)."; exit 1; fi
@@ -32,13 +34,13 @@ help: ## Lista os comandos
 
 ## Containers (rodar na VPS, ou localmente para testar)
 .PHONY: env build up down restart ps logs release
-env: ## Cria o .env a partir do modelo, com senhas aleatórias
-	@if [ -f .env ]; then echo ".env já existe — nada a fazer."; exit 0; fi
-	cp .env.docker.example .env && chmod 600 .env
+env: ## Cria o .env.prod a partir do modelo, com senhas aleatórias
+	@if [ -f $(ENV_FILE) ]; then echo "$(ENV_FILE) já existe — nada a fazer."; exit 0; fi
+	cp .env.prod.example $(ENV_FILE) && chmod 600 $(ENV_FILE)
 	for v in MYSQL_ROOT_PASSWORD DB_PASSWORD DB_MIGRATE_PASSWORD; do
-	  sed -i "s|^$$v=$$|$$v=$$(openssl rand -hex 24)|" .env
+	  sed -i "s|^$$v=$$|$$v=$$(openssl rand -hex 24)|" $(ENV_FILE)
 	done
-	echo ".env criado com senhas aleatórias. Ajuste DOMAIN, ACME_EMAIL, APP_URL e ADMIN_EMAIL."
+	echo "$(ENV_FILE) criado com senhas aleatórias. Ajuste DOMAIN, ACME_EMAIL, APP_URL e ADMIN_EMAIL."
 
 build: ## Constrói as imagens
 	$(COMPOSE) build --pull
@@ -59,7 +61,7 @@ logs: ## Logs (make logs S=api para um serviço)
 	$(COMPOSE) logs -f --tail=200 $(S)
 
 release: ## Build + sobe + migrations + checagem (usado pelo deploy)
-	@test -f .env || { echo "Falta o .env (rode: make env)"; exit 1; }
+	@test -f $(ENV_FILE) || { echo "Falta o $(ENV_FILE) (rode: make env)"; exit 1; }
 	$(COMPOSE) build --pull
 	$(COMPOSE) up -d --remove-orphans
 	$(MAKE) --no-print-directory wait-db migrate
@@ -67,18 +69,18 @@ release: ## Build + sobe + migrations + checagem (usado pelo deploy)
 	docker image prune -f >/dev/null
 	$(MAKE) --no-print-directory health
 
-## Docker local (desenvolvimento/teste na sua máquina)
+## Docker local com a imagem de PRODUÇÃO (dev com hot-reload: docker compose up -d)
 LOCAL_PORT ?= 8880
 .PHONY: local local-env local-db local-down local-reset
-local-env: ## Cria o .env local (HTTP em localhost:LOCAL_PORT, sem Let's Encrypt)
-	@if [ -f .env ]; then
-	  grep -q '^SITE_ADDRESS=:80' .env || { echo "Já existe um .env que não é local (produção?). Renomeie-o antes."; exit 1; }
-	  echo ".env local já existe."; exit 0
+local-env: ## Cria o .env.prod local (HTTP em localhost:LOCAL_PORT, sem Let's Encrypt)
+	@if [ -f $(ENV_FILE) ]; then
+	  grep -q '^SITE_ADDRESS=:80' $(ENV_FILE) || { echo "Já existe um $(ENV_FILE) que não é local (produção?). Renomeie-o antes."; exit 1; }
+	  echo "$(ENV_FILE) local já existe."; exit 0
 	fi
 	$(MAKE) --no-print-directory env >/dev/null
-	sed -i 's|^DOMAIN=.*|DOMAIN=localhost|; s|^ACME_EMAIL=.*|ACME_EMAIL=dev@localhost|; s|^APP_URL=.*|APP_URL=http://localhost:$(LOCAL_PORT)|; s|^HTTP_PORT=.*|HTTP_PORT=$(LOCAL_PORT)|; s|^HTTPS_PORT=.*|HTTPS_PORT=$(shell echo $$(( $(LOCAL_PORT) + 1 )))|' .env
-	printf '\n# --- MODO LOCAL: HTTP sem certificado ---\nSITE_ADDRESS=:80\nSESSION_SECURE=false\n' >> .env
-	echo ".env local criado (http://localhost:$(LOCAL_PORT))."
+	sed -i 's|^DOMAIN=.*|DOMAIN=localhost|; s|^ACME_EMAIL=.*|ACME_EMAIL=dev@localhost|; s|^APP_URL=.*|APP_URL=http://localhost:$(LOCAL_PORT)|; s|^HTTP_PORT=.*|HTTP_PORT=$(LOCAL_PORT)|; s|^HTTPS_PORT=.*|HTTPS_PORT=$(shell echo $$(( $(LOCAL_PORT) + 1 )))|' $(ENV_FILE)
+	printf '\n# --- MODO LOCAL: HTTP sem certificado ---\nSITE_ADDRESS=:80\nSESSION_SECURE=false\n' >> $(ENV_FILE)
+	echo "$(ENV_FILE) local criado (http://localhost:$(LOCAL_PORT))."
 
 local: local-env ## Sobe o sistema no Docker local: http://localhost:8880
 	$(COMPOSE) build

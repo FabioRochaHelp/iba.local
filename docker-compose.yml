@@ -1,113 +1,78 @@
-# =============================================================================
-#  Irmãos da Bola Academy — produção (VPS)
-#  Uso: make up | make deploy | make help
-# =============================================================================
-name: iba
-
-x-app-env: &app-env
-  APP_ENV: production
-  APP_DEBUG: "false"
-  APP_URL: ${APP_URL:-https://${DOMAIN}}
-  APP_TIMEZONE: ${TZ:-America/Sao_Paulo}
-  TZ: ${TZ:-America/Sao_Paulo}
-  DB_HOST: db
-  DB_PORT: "3306"
-  DB_DATABASE: ${DB_DATABASE}
-  DB_USERNAME: ${DB_USERNAME}
-  DB_PASSWORD: ${DB_PASSWORD}
-  DB_MIGRATE_USERNAME: ${DB_MIGRATE_USERNAME}
-  DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD}
-  SESSION_SECURE: ${SESSION_SECURE:-true}
-  SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-30}
-  SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-8}
-  INVOICE_DUE_DAY: ${INVOICE_DUE_DAY:-10}
-  ADMIN_NAME: ${ADMIN_NAME:-Administrador}
-  ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-
 services:
-  web:
-    build: { context: ., target: web }
-    image: iba-web:latest
-    restart: unless-stopped
-    depends_on:
-      api: { condition: service_started }
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-      - "${HTTPS_PORT:-443}:443/udp"
-    environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
-      ACME_EMAIL: ${ACME_EMAIL}
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [frontend, backend]
-
-  api:
-    build: { context: ., target: api }
-    image: iba-api:latest
-    restart: unless-stopped
-    depends_on:
-      db: { condition: service_healthy }
-    environment: *app-env
-    volumes:
-      - app_logs:/app/storage/logs
-    networks: [backend]
-
-  scheduler:
-    image: iba-api:latest
-    restart: unless-stopped
-    depends_on:
-      db: { condition: service_healthy }
-      api: { condition: service_started }
-    entrypoint: ["/usr/local/bin/iba-scheduler"]
-    environment:
-      <<: *app-env
-      AUTO_INVOICES: ${AUTO_INVOICES:-false}
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
-    volumes:
-      - app_logs:/app/storage/logs
-      - backups:/backups
-    networks: [backend]
-
   db:
     image: mysql:8.0
     restart: unless-stopped
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=-03:00
-      - --innodb-buffer-pool-size=${MYSQL_BUFFER_POOL:-256M}
-      - --max-connections=60
-      - --skip-name-resolve
+    # Senha de root só é usada dentro do container (script de init abaixo);
+    # a aplicação nunca se conecta como root — veja backend/docker/mysql-init.
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_MIGRATE_USERNAME: ${DB_MIGRATE_USERNAME}
-      DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD}
-      TZ: ${TZ:-America/Sao_Paulo}
+      MYSQL_ROOT_PASSWORD: root_dev_only
+    env_file:
+      - ./backend/.env
     volumes:
-      - db_data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - iba_mysql_data:/var/lib/mysql
+      - ./backend/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    # Sem publicar porta no host: backend e adminer acessam pela rede interna
+    # do Docker (host "db"). Se precisar de um client MySQL do host, rode:
+    #   docker compose exec db mysql -u iba_migrate -p iba
+    # ou publique a porta só localmente via docker-compose.override.yml.
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
-      interval: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 30s
-    # Sem "ports": o banco NÃO fica exposto na internet.
-    networks: [backend]
+      retries: 20
 
-networks:
-  frontend: {}
-  backend: { internal: true }
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    # Sem env_file aqui de propósito: backend/.env é lido direto pelo PHP
+    # (Env::load, a cada request, via bind-mount abaixo). Se o valor também
+    # virasse env var do container (via env_file), Env::load o ignoraria
+    # (getenv() já setado) e editar o .env em disco não teria mais efeito
+    # sem recriar o container.
+    environment:
+      # Dentro da rede do Docker o MySQL é o serviço "db", não 127.0.0.1.
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8765}:80"
+    volumes:
+      - ./backend:/var/www/html
+      - iba_backend_vendor:/var/www/html/vendor
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:80
+      # Domínio(s) público(s) atrás do reverse proxy, se houver (ex.: nginx
+      # com TLS). Separe por vírgula. Vazio = só localhost (padrão do Vite).
+      VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-}
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - iba_frontend_node_modules:/app/node_modules
+
+  # Administração visual do MySQL (sistema: MySQL, servidor: db)
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8082}:8080"
 
 volumes:
-  db_data: {}
-  caddy_data: {}
-  caddy_config: {}
-  app_logs: {}
-  backups: {}
+  iba_mysql_data:
+  iba_backend_vendor:
+  iba_frontend_node_modules:

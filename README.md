@@ -35,7 +35,27 @@ Há dois caminhos:
 
 `make help` lista todos os comandos.
 
-## Ambiente de desenvolvimento
+## Ambiente de desenvolvimento (Docker)
+
+> Há dois arquivos Compose: **`docker-compose.yml`** (este, desenvolvimento com hot-reload) e **`docker-compose.prod.yml`** (produção com HTTPS, usado via `make local` / `make deploy` e configurado em `.env.prod` — ver [deploy/DOCKER.md](deploy/DOCKER.md)). Eles usam projetos, volumes e `.env` diferentes e não interferem um no outro.
+
+Sobe tudo com um comando: MySQL 8, backend (PHP 8.1 + Apache) e frontend (Vite), já com migrations e seed aplicados automaticamente.
+
+```bash
+cp backend/.env.example backend/.env   # ajuste DB_PASSWORD/DB_MIGRATE_PASSWORD se quiser
+docker compose up -d --build
+```
+
+| Serviço | URL |
+|---|---|
+| Frontend (SPA) | http://localhost:5173 |
+| Backend (API) | http://localhost:8765/api |
+| Adminer (MySQL) | http://localhost:8082 — sistema `MySQL`, servidor `db`, usuário/senha do `.env` (ou `root` / `root_dev_only` para acesso total) |
+| MySQL (console) | não é publicado no host; use `docker compose exec db mysql -u iba_migrate -p iba` |
+
+A senha temporária do admin criado pelo seed aparece no log: `docker compose logs backend`. O código de `backend/` e `frontend/` é montado como volume (hot-reload); `vendor/` e `node_modules/` ficam em volumes próprios do Docker. Para reaplicar migrations/seed manualmente: `docker compose exec backend php database/migrate.php --seed`. Para parar: `docker compose down` (adicione `-v` para apagar também os dados do MySQL).
+
+## Ambiente de desenvolvimento (sem Docker)
 
 ### 1. Banco de dados
 ```sql

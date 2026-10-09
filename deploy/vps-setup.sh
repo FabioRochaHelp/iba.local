@@ -44,12 +44,12 @@ fi
 cd "$VPS_DIR"
 mkdir -p backups && chmod 700 backups
 
-echo "==> .env"
-if [ ! -f .env ]; then
+echo "==> .env.prod"
+if [ ! -f .env.prod ]; then
   make --no-print-directory env
 fi
-sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|; s|^ACME_EMAIL=.*|ACME_EMAIL=$ACME_EMAIL|; s|^APP_URL=.*|APP_URL=https://$DOMAIN|" .env
-chmod 600 .env
+sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|; s|^ACME_EMAIL=.*|ACME_EMAIL=$ACME_EMAIL|; s|^APP_URL=.*|APP_URL=https://$DOMAIN|" .env.prod
+chmod 600 .env.prod
 
 IP=$(curl -fsS --max-time 5 https://api.ipify.org || echo "?")
 DNS=$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1 || true)
