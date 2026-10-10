@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AthleteController;
+use App\Controllers\AthletePhotoController;
 use App\Controllers\AttendanceController;
 use App\Controllers\AuditController;
 use App\Controllers\ClassController;
@@ -47,6 +48,8 @@ return static function (Router $r) use ($ADMIN, $ALL, $PORTAL, $EVERYONE): void 
             $r->get('/auth/me', [AuthController::class, 'me']);
             $r->post('/auth/logout', [AuthController::class, 'logout']);
             $r->put('/auth/password', [AuthController::class, 'changePassword']);
+            // Foto do atleta — equipe: qualquer atleta; portal: só os vinculados (verificado no service)
+            $r->get('/athletes/{id:id}/photo', [AthletePhotoController::class, 'show']);
         });
 
         // Portal do atleta/responsável — só os atletas vinculados (verificado no service)
@@ -98,6 +101,8 @@ return static function (Router $r) use ($ADMIN, $ALL, $PORTAL, $EVERYONE): void 
             $r->post('/athletes', [AthleteController::class, 'store'], ['roles' => $ADMIN]);
             $r->put('/athletes/{id:id}', [AthleteController::class, 'update'], ['roles' => $ADMIN]);
             $r->delete('/athletes/{id:id}', [AthleteController::class, 'destroy'], ['roles' => $ADMIN]);
+            $r->put('/athletes/{id:id}/photo', [AthletePhotoController::class, 'update'], ['roles' => $ADMIN]);
+            $r->delete('/athletes/{id:id}/photo', [AthletePhotoController::class, 'destroy'], ['roles' => $ADMIN]);
 
             // Responsáveis — somente admin (CPF, e-mail)
             $r->group(['roles' => $ADMIN], function (Router $r): void {

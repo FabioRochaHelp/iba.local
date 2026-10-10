@@ -9,6 +9,7 @@ use App\Core\Exceptions\NotFoundException;
 use App\Core\Exceptions\ValidationException;
 use App\Core\Http\Request;
 use App\Models\User;
+use App\Repositories\Contracts\AthletePhotoRepositoryInterface;
 use App\Repositories\Contracts\AthletePlanRepositoryInterface;
 use App\Repositories\Contracts\AthleteRepositoryInterface;
 use App\Repositories\Contracts\GuardianRepositoryInterface;
@@ -29,6 +30,7 @@ class AthleteService
         private AthletePresenter $presenter,
         private Connection $db,
         private AuditLogger $audit,
+        private AthletePhotoRepositoryInterface $photos,
     ) {
     }
 
@@ -124,7 +126,10 @@ class AthleteService
         if (!$this->athletes->exists($id)) {
             throw new NotFoundException('Atleta não encontrado.');
         }
-        $this->athletes->softDelete($id);
+        $this->db->transaction(function () use ($id): void {
+            $this->athletes->softDelete($id);
+            $this->photos->delete($id); // LGPD: a foto não é mantida após a exclusão
+        });
         $this->audit->log($request, 'athlete_deleted', 'athlete', $id);
     }
 

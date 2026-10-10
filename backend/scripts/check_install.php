@@ -23,7 +23,7 @@ $check = static function (string $label, bool $ok, string $hint = '', bool $crit
 };
 
 $check('PHP >= 8.1 (atual ' . PHP_VERSION . ')', version_compare(PHP_VERSION, '8.1.0', '>='), 'Selecione PHP 8.1+ no cPanel (MultiPHP Manager).');
-foreach (['pdo_mysql', 'mbstring', 'json', 'zip', 'simplexml'] as $ext) {
+foreach (['pdo_mysql', 'mbstring', 'json', 'zip', 'simplexml', 'gd'] as $ext) {
     $check("Extensão {$ext}", extension_loaded($ext), "Ative a extensão {$ext} no cPanel (Select PHP Version).", in_array($ext, ['pdo_mysql', 'mbstring', 'json'], true));
 }
 $check('Argon2id disponível', defined('PASSWORD_ARGON2ID'), 'Sem Argon2id o sistema usa bcrypt (seguro, apenas informativo).', false);

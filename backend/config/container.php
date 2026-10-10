@@ -55,6 +55,7 @@ return static function (Container $c, Config $config): void {
         Contracts\AthletePlanRepositoryInterface::class => Pdo\PdoAthletePlanRepository::class,
         Contracts\GuardianRepositoryInterface::class => Pdo\PdoGuardianRepository::class,
         Contracts\AthleteRepositoryInterface::class => Pdo\PdoAthleteRepository::class,
+        Contracts\AthletePhotoRepositoryInterface::class => Pdo\PdoAthletePhotoRepository::class,
         Contracts\InvoiceRepositoryInterface::class => Pdo\PdoInvoiceRepository::class,
         Contracts\PaymentRepositoryInterface::class => Pdo\PdoPaymentRepository::class,
         Contracts\UniformRepositoryInterface::class => Pdo\PdoUniformRepository::class,

@@ -20,6 +20,22 @@
       <!-- Dados do atleta -->
       <section class="iba-card iba-card--accent">
         <h2>Dados do atleta</h2>
+        <div class="photo">
+          <AthleteAvatar :athlete="photoRemoved ? null : original" :preview="photoPreview" size="lg" alt="Foto do atleta" />
+          <div class="photo__actions">
+            <input
+              ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
+              aria-label="Escolher foto do atleta" @change="onPhotoChosen"
+            />
+            <Button
+              type="button" :label="hasPhoto ? 'Trocar foto' : 'Adicionar foto'" icon="pi pi-camera"
+              severity="secondary" outlined :loading="processingPhoto" @click="photoInput.click()"
+            />
+            <Button v-if="hasPhoto" type="button" label="Remover" icon="pi pi-trash" severity="danger" text @click="removePhoto" />
+            <small v-if="errors.photo" class="field__error">{{ errors.photo }}</small>
+            <small v-else class="iba-muted">JPG, PNG ou WebP. A foto é recortada em quadrado e só aparece para usuários do sistema.</small>
+          </div>
+        </div>
         <div class="grid">
           <div class="field span-2">
             <label for="name">Nome completo *</label>
@@ -195,6 +211,8 @@ import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import PhonesInput from '@/components/PhonesInput.vue'
+import AthleteAvatar from '@/components/AthleteAvatar.vue'
+import { squarePhoto } from '@/utils/image'
 import { athletesApi } from '@/api/athletes'
 import { guardiansApi } from '@/api/guardians'
 import { catalogApi } from '@/api/catalog'
@@ -216,6 +234,42 @@ const errors = ref({})
 const original = ref(null)
 const positions = ref([])
 const plans = ref([])
+
+// Foto: escolhida/removida no formulário e enviada depois de salvar o atleta.
+const photoInput = ref(null)
+const photoPreview = ref(null)
+const photoRemoved = ref(false)
+const processingPhoto = ref(false)
+const hasPhoto = computed(() => Boolean(photoPreview.value || (!photoRemoved.value && original.value?.photo_version)))
+
+async function onPhotoChosen(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  processingPhoto.value = true
+  errors.value = Object.fromEntries(Object.entries(errors.value).filter(([k]) => k !== 'photo'))
+  try {
+    photoPreview.value = await squarePhoto(file)
+    photoRemoved.value = false
+  } catch (e) {
+    errors.value = { ...errors.value, photo: e.message }
+  } finally {
+    processingPhoto.value = false
+  }
+}
+
+function removePhoto() {
+  photoPreview.value = null
+  photoRemoved.value = true
+}
+
+async function savePhoto(athleteId) {
+  if (photoPreview.value) {
+    await athletesApi.uploadPhoto(athleteId, photoPreview.value)
+  } else if (photoRemoved.value && original.value?.photo_version) {
+    await athletesApi.removePhoto(athleteId)
+  }
+}
 
 const form = reactive({
   name: '',
@@ -323,6 +377,12 @@ async function submit() {
       ? await athletesApi.update(id.value, buildPayload())
       : await athletesApi.create(buildPayload())
     toast.add({ severity: 'success', summary: isEdit.value ? 'Atleta atualizado' : 'Atleta cadastrado', detail: athlete.name, life: 3000 })
+    try {
+      await savePhoto(athlete.id)
+    } catch (e) {
+      // O atleta já foi salvo; só a foto falhou.
+      toast.add({ severity: 'warn', summary: 'A foto não foi salva', detail: e.fields?.photo || e.userMessage, life: 6000 })
+    }
     router.push({ name: 'athlete-show', params: { id: athlete.id } })
   } catch (e) {
     errors.value = e.fields || {}
@@ -376,6 +436,9 @@ onMounted(async () => {
 .field__error { color: var(--iba-danger); }
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .section-head h2 { margin: 0 !important; }
+.photo { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.photo__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; flex: 1; min-width: 220px; }
+.photo__actions small { flex-basis: 100%; }
 .toggle { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; font-weight: 500; }
 .fee-preview {
   display: flex; flex-direction: column; justify-content: center; padding: .5rem 1rem; border-radius: 8px;

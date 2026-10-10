@@ -69,7 +69,7 @@ class AthleteAccessPolicy
     /**
      * Atletas acessíveis no portal.
      *
-     * @return list<array{id: int, name: string, birth_date: ?string, status: string}>
+     * @return list<array{id: int, name: string, birth_date: ?string, status: string, photo_version: ?string}>
      */
     public function portalAthletes(User $user): array
     {

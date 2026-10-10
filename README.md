@@ -15,7 +15,7 @@ docs/       planilha original de referência
 
 | Módulo | Admin | Professor |
 |---|---|---|
-| Atletas e responsáveis (importação da planilha CSV/XLSX) | total | consulta (sem valores/CPF) |
+| Atletas e responsáveis (foto do atleta, importação da planilha CSV/XLSX) | total | consulta (sem valores/CPF) |
 | Planos, mensalidades, pagamentos/estornos, inadimplência + WhatsApp | total | — |
 | Uniformes (pedidos, pagamento, entrega) e patrocínios | total | — |
 | Turmas e chamada (mobile), relatórios de frequência | total | só as próprias turmas |

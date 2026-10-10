@@ -11,7 +11,7 @@ Tempo estimado: 30 a 45 minutos na primeira vez.
 | Item | Onde conferir |
 |---|---|
 | Hospedagem com **PHP 8.1 ou superior** e **MySQL 5.7+/MariaDB 10.4+** | cPanel → *MultiPHP Manager* / *Select PHP Version* |
-| Extensões PHP: `pdo_mysql`, `mbstring`, `json` (obrigatórias); `zip`, `simplexml` (para importar planilha .xlsx) | cPanel → *Select PHP Version* → *Extensions* |
+| Extensões PHP: `pdo_mysql`, `mbstring`, `json` (obrigatórias); `zip`, `simplexml` (para importar planilha .xlsx); `gd` (para a foto dos atletas) | cPanel → *Select PHP Version* → *Extensions* |
 | **Certificado SSL (HTTPS)** ativo no domínio ou subdomínio | cPanel → *SSL/TLS Status* (AutoSSL / Let's Encrypt) |
 | Acesso ao **Gerenciador de Arquivos**, **Bancos de Dados MySQL**, **phpMyAdmin** e **Cron Jobs** | cPanel |
 
@@ -182,7 +182,7 @@ Em **Cron Jobs**, crie as tarefas **permanentes**:
 
 - **Banco (diário):** crie no Cron o comando abaixo. Ele usa o usuário mig, que tem permissão de leitura completa.
   ```
-  /usr/bin/mysqldump --single-transaction -u conta_iba_mig -p'SENHA' conta_iba | gzip > /home/conta/backups/iba-$(date +\%F).sql.gz
+  /usr/bin/mysqldump --single-transaction --hex-blob -u conta_iba_mig -p'SENHA' conta_iba | gzip > /home/conta/backups/iba-$(date +\%F).sql.gz
   ```
   - Crie antes a pasta `/home/conta/backups`, **fora** do `public_html`.
   - Apague backups antigos periodicamente.

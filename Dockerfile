@@ -24,9 +24,10 @@ RUN npm run build
 
 # ---------- API (PHP-FPM) ----------
 FROM php:8.3-fpm-alpine AS api
-RUN apk add --no-cache libzip icu-libs mariadb-client mariadb-connector-c tzdata supercronic \
- && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libzip-dev icu-dev \
- && docker-php-ext-install -j"$(nproc)" pdo_mysql zip intl opcache \
+RUN apk add --no-cache libzip icu-libs libjpeg-turbo libpng libwebp mariadb-client mariadb-connector-c tzdata supercronic \
+ && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libzip-dev icu-dev libjpeg-turbo-dev libpng-dev libwebp-dev \
+ && docker-php-ext-configure gd --with-jpeg --with-webp \
+ && docker-php-ext-install -j"$(nproc)" pdo_mysql zip intl opcache gd \
  && apk del .build-deps \
  && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/php/php.ini      /usr/local/etc/php/conf.d/zz-iba.ini

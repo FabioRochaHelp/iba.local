@@ -4,7 +4,7 @@
 
     <template v-else-if="athlete">
       <section class="iba-card hero">
-        <span class="hero__avatar" aria-hidden="true">{{ initials(athlete.name) }}</span>
+        <AthleteAvatar :athlete="athlete" size="md" :alt="`Foto de ${athlete.name}`" />
         <div class="hero__info">
           <h1>{{ athlete.name }}</h1>
           <div class="hero__meta">
@@ -134,7 +134,8 @@ import AthleteSponsorships from '@/components/sponsors/AthleteSponsorships.vue'
 import { athletesApi } from '@/api/athletes'
 import { useAuthStore } from '@/stores/auth'
 import { useApiError } from '@/composables/useApiError'
-import { finalFee, formatDate, formatMoney, initials } from '@/utils/format'
+import { finalFee, formatDate, formatMoney } from '@/utils/format'
+import AthleteAvatar from '@/components/AthleteAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -200,11 +201,6 @@ onMounted(load)
 
 <style scoped>
 .hero { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; border-top: 3px solid var(--iba-gold); }
-.hero__avatar {
-  width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  background: var(--iba-black); color: var(--iba-gold-light); border: 3px solid var(--iba-gold);
-  font-family: var(--iba-font-title); font-weight: 800; font-size: 1.4rem;
-}
 .hero__info { flex: 1; min-width: 220px; }
 .hero__meta { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: .5rem; color: var(--iba-text-muted); font-size: .85rem; }
 .hero__actions { display: flex; gap: .25rem; align-items: center; }

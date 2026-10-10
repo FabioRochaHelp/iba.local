@@ -55,7 +55,7 @@
         <Column field="name" header="Atleta" sortable>
           <template #body="{ data }">
             <div class="athlete-cell">
-              <span class="avatar-sm" aria-hidden="true">{{ initials(data.name) }}</span>
+              <AthleteAvatar :athlete="data" size="sm" />
               <div>
                 <strong>{{ data.name }}</strong>
                 <i
@@ -143,7 +143,8 @@ import { athletesApi } from '@/api/athletes'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/auth'
 import { useApiError } from '@/composables/useApiError'
-import { debounce, finalFee, formatMoney, initials } from '@/utils/format'
+import { debounce, finalFee, formatMoney } from '@/utils/format'
+import AthleteAvatar from '@/components/AthleteAvatar.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -260,11 +261,6 @@ onMounted(async () => {
 .athletes-table :deep(tr) { cursor: pointer; }
 
 .athlete-cell { display: flex; gap: .75rem; align-items: center; }
-.avatar-sm {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-  display: grid; place-items: center; font-size: .75rem; font-weight: 700;
-  background: var(--iba-black); color: var(--iba-gold-light); border: 2px solid var(--iba-gold);
-}
 .health { color: var(--iba-danger); margin-left: .4rem; font-size: .8rem; }
 .positions { display: flex; gap: .25rem; margin-top: .2rem; flex-wrap: wrap; }
 .pos {

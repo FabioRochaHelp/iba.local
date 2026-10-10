@@ -46,7 +46,8 @@ final class PdoAthleteRepository implements AthleteRepositoryInterface
         $rows = $this->db->fetchAll(
             'SELECT a.id, a.name, a.birth_date, a.status, a.has_health_condition, a.health_condition, a.enrollment_date,
                     g.id AS guardian_id, g.name AS guardian_name,
-                    ap.plan_id, p.name AS plan_name, p.days_per_week, p.monthly_fee, ap.discount_type, ap.discount_value '
+                    ap.plan_id, p.name AS plan_name, p.days_per_week, p.monthly_fee, ap.discount_type, ap.discount_value,
+                    (SELECT ph.version FROM athlete_photos ph WHERE ph.athlete_id = a.id) AS photo_version '
             . self::BASE_FROM . " WHERE {$whereSql} ORDER BY {$order}, a.id LIMIT :limit OFFSET :offset",
             $params + ['limit' => $perPage, 'offset' => ($page - 1) * $perPage],
         );
@@ -68,7 +69,7 @@ final class PdoAthleteRepository implements AthleteRepositoryInterface
                     a.created_at, a.updated_at,
                     g.id AS guardian_id, g.name AS guardian_name, g.cpf AS guardian_cpf, g.email AS guardian_email,
                     ap.plan_id, p.name AS plan_name, p.days_per_week, p.monthly_fee, ap.discount_type, ap.discount_value,
-                    ap.start_date AS plan_start_date '
+                    ap.start_date AS plan_start_date, (SELECT ph.version FROM athlete_photos ph WHERE ph.athlete_id = a.id) AS photo_version '
             . self::BASE_FROM . ' WHERE a.id = ? AND a.deleted_at IS NULL',
             [$id],
         );
@@ -125,8 +126,11 @@ final class PdoAthleteRepository implements AthleteRepositoryInterface
             'name' => $r['name'],
             'birth_date' => $r['birth_date'],
             'status' => $r['status'],
+            'photo_version' => $r['photo_version'],
         ], $this->db->fetchAll(
-            "SELECT id, name, birth_date, status FROM athletes WHERE guardian_id = ? AND deleted_at IS NULL AND status <> 'inativo' ORDER BY name",
+            "SELECT id, name, birth_date, status,
+                    (SELECT ph.version FROM athlete_photos ph WHERE ph.athlete_id = athletes.id) AS photo_version
+               FROM athletes WHERE guardian_id = ? AND deleted_at IS NULL AND status <> 'inativo' ORDER BY name",
             [$guardianId],
         ));
     }
@@ -271,6 +275,7 @@ final class PdoAthleteRepository implements AthleteRepositoryInterface
             'has_health_condition' => (bool) $r['has_health_condition'],
             'health_condition' => $r['health_condition'],
             'enrollment_date' => $r['enrollment_date'],
+            'photo_version' => $r['photo_version'],
             'positions' => $positions[$id] ?? [],
             'guardian' => [
                 'id' => $guardianId,

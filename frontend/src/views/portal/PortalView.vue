@@ -9,7 +9,7 @@
 
     <template v-else>
       <section class="iba-card hero">
-        <span class="hero__avatar" aria-hidden="true">{{ initials(current?.name) }}</span>
+        <AthleteAvatar :athlete="current" size="md" :alt="current ? `Foto de ${current.name}` : ''" />
         <div class="hero__info">
           <p class="hello">{{ auth.user?.role === 'responsavel' ? `Olá, ${firstName}! Acompanhe` : 'Olá! Este é o seu espaço' }}</p>
           <h1>{{ current?.name }}</h1>
@@ -82,7 +82,8 @@ import EvolutionPanel from '@/components/evolution/EvolutionPanel.vue'
 import { portalApi } from '@/api/evolution'
 import { useAuthStore } from '@/stores/auth'
 import { useApiError } from '@/composables/useApiError'
-import { attendanceStatus, formatDate, initials, weekdayLabel } from '@/utils/format'
+import { attendanceStatus, formatDate, weekdayLabel } from '@/utils/format'
+import AthleteAvatar from '@/components/AthleteAvatar.vue'
 
 const auth = useAuthStore()
 const { notify } = useApiError()
@@ -127,11 +128,6 @@ onMounted(async () => {
 .empty { text-align: center; padding: 2rem; }
 .empty i { font-size: 2rem; color: var(--iba-gold); }
 .hero { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; border-top: 3px solid var(--iba-gold); }
-.hero__avatar {
-  width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  background: var(--iba-black); color: var(--iba-gold-light); border: 3px solid var(--iba-gold);
-  font-family: var(--iba-font-title); font-weight: 800; font-size: 1.4rem;
-}
 .hero__info { flex: 1; min-width: 200px; }
 .hello { margin: 0 0 .15rem; color: var(--iba-text-muted); font-size: .85rem; }
 .meta { display: flex; gap: 1rem; margin: .4rem 0 0; color: var(--iba-text-muted); font-size: .85rem; }

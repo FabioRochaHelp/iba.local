@@ -24,7 +24,7 @@ interface AthleteRepositoryInterface
     /** Responsável do atleta (null se o atleta não existe ou foi excluído). */
     public function guardianIdOf(int $athleteId): ?int;
 
-    /** @return list<array{id: int, name: string, birth_date: ?string, status: string}> filhos ativos do responsável */
+    /** @return list<array{id: int, name: string, birth_date: ?string, status: string, photo_version: ?string}> filhos ativos do responsável */
     public function byGuardian(int $guardianId): array;
 
     public function findIdByNameAndBirth(string $name, ?string $birthDate): ?int;
